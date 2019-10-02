@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Globals:
+  Function:
+    Runtime: go1.x
+    Handler: api
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref Table
+
+Resources:
+  Root:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref Table
+      Events:
+        RootHandler:
+          Type: Api
+          Properties:
+            Path: '/{key}'
+            Method: get
+
+  Api:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref Table
+      Events:
+        CreateLink:
+          Type: Api
+          Properties:
+            Path: '/api/v1/links'
+            Method: post
+            Auth:
+              ApiKeyRequired: true
+
+  Table:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: entry_key
+          AttributeType: S
+      KeySchema:
+        - AttributeName: entry_key
+          KeyType: HASH
