@@ -24,7 +24,7 @@ type entry struct {
 	URL         string `json:"url" dynamodbav:"entry_url"`
 	APIKey      string `json:"-" dynamodbav:"api_key"`
 	UsageCount  int    `json:"-" dynamodbav:"usage_count"`
-	LastUsageIP string `json:"-" dynamodbav:"last_usage_ip"`
+	LastUsageIP string `json:"-" dynamodbav:"last_usage_ip,omitempty"`
 }
 
 type entryKey struct {
