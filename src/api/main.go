@@ -20,9 +20,10 @@ var (
 )
 
 type entry struct {
-	Key    string `json:"key" dynamodbav:"entry_key"`
-	URL    string `json:"url" dynamodbav:"entry_url"`
-	APIKey string `json:"-" dynamodbav:"api_key"`
+	Key        string `json:"key" dynamodbav:"entry_key"`
+	URL        string `json:"url" dynamodbav:"entry_url"`
+	APIKey     string `json:"-" dynamodbav:"api_key"`
+	UsageCount int    `json:"-" dynamodbav:"usage_count"`
 }
 
 type entryKey struct {
@@ -92,6 +93,19 @@ func handleGetKey(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResp
 	entry := fromDynamoDb(item.Item)
 	if entry.URL == "" {
 		return notFound()
+	}
+
+	_, err = db.UpdateItem(&dynamodb.UpdateItemInput{
+		TableName:        tableName,
+		Key:              toDynamoDb(entryKey{Key: key}),
+		UpdateExpression: aws.String("ADD usage_count :one"),
+		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
+			":one": {N: aws.String("1")},
+		},
+	})
+
+	if err != nil {
+		panic(err)
 	}
 
 	return redirect(entry.URL)
