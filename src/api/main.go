@@ -20,10 +20,11 @@ var (
 )
 
 type entry struct {
-	Key        string `json:"key" dynamodbav:"entry_key"`
-	URL        string `json:"url" dynamodbav:"entry_url"`
-	APIKey     string `json:"-" dynamodbav:"api_key"`
-	UsageCount int    `json:"-" dynamodbav:"usage_count"`
+	Key         string `json:"key" dynamodbav:"entry_key"`
+	URL         string `json:"url" dynamodbav:"entry_url"`
+	APIKey      string `json:"-" dynamodbav:"api_key"`
+	UsageCount  int    `json:"-" dynamodbav:"usage_count"`
+	LastUsageIP string `json:"-" dynamodbav:"last_usage_ip"`
 }
 
 type entryKey struct {
@@ -98,9 +99,10 @@ func handleGetKey(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResp
 	_, err = db.UpdateItem(&dynamodb.UpdateItemInput{
 		TableName:        tableName,
 		Key:              toDynamoDb(entryKey{Key: key}),
-		UpdateExpression: aws.String("ADD usage_count :one"),
+		UpdateExpression: aws.String("ADD usage_count :one  SET last_usage_ip = :ip"),
 		ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
 			":one": {N: aws.String("1")},
+			":ip":  {S: &req.RequestContext.Identity.SourceIP},
 		},
 	})
 
