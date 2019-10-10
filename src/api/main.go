@@ -20,11 +20,16 @@ var (
 )
 
 type entry struct {
-	Key string `json:"key" dynamodbav:"entry_key"`
-	URL string `json:"url" dynamodbav:"entry_url,omitempty"`
+	Key    string `json:"key" dynamodbav:"entry_key"`
+	URL    string `json:"url" dynamodbav:"entry_url"`
+	APIKey string `json:"-" dynamodbav:"api_key"`
 }
 
-func toDynamoDb(e entry) map[string]*dynamodb.AttributeValue {
+type entryKey struct {
+	Key string `dynamodbav:"entry_key"`
+}
+
+func toDynamoDb(e interface{}) map[string]*dynamodb.AttributeValue {
 	d, err := dynamodbattribute.MarshalMap(e)
 	if err != nil {
 		panic(err)
@@ -77,7 +82,7 @@ func handleGetKey(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResp
 	key := req.PathParameters["key"]
 	item, err := db.GetItem(&dynamodb.GetItemInput{
 		TableName: tableName,
-		Key:       toDynamoDb(entry{Key: key}),
+		Key:       toDynamoDb(entryKey{Key: key}),
 	})
 
 	if err != nil {
@@ -99,12 +104,11 @@ func handleCreateLink(req events.APIGatewayProxyRequest) (events.APIGatewayProxy
 		return badRequest()
 	}
 
-	entry := entry{Key: generateKey(), URL: url}
+	entry := entry{Key: generateKey(), URL: url, APIKey: req.RequestContext.Authorizer["principalId"].(string)}
 	_, err := db.PutItem(&dynamodb.PutItemInput{
-		TableName:                tableName,
-		ConditionExpression:      aws.String("attribute_not_exists(#key)"),
-		ExpressionAttributeNames: map[string]*string{"#key": aws.String("key")},
-		Item:                     toDynamoDb(entry),
+		TableName:           tableName,
+		ConditionExpression: aws.String("attribute_not_exists(entry_key)"),
+		Item:                toDynamoDb(entry),
 	})
 
 	if err != nil {

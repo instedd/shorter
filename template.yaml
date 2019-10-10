@@ -7,38 +7,66 @@ Globals:
     Handler: api
     Environment:
       Variables:
-        TABLE_NAME: !Ref Table
+        TABLE_NAME: !Ref EntryTable
 
 Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        ApiKeyRequired: true
+        DefaultAuthorizer: ApiKeyAuthorizer
+        Authorizers:
+          ApiKeyAuthorizer:
+            FunctionArn: !GetAtt ApiKeyAuthFunction.Arn
+            Identity:
+              Header: x-api-key
   Root:
     Type: AWS::Serverless::Function
     Properties:
       Policies:
         - DynamoDBReadPolicy:
-            TableName: !Ref Table
+            TableName: !Ref EntryTable
       Events:
         RootHandler:
           Type: Api
           Properties:
+            RestApiId: !Ref Api
             Path: '/{key}'
             Method: get
+            Auth:
+              ApiKeyRequired: false
+              Authorizer: 'NONE'
 
-  Api:
+  ApiFunction:
     Type: AWS::Serverless::Function
     Properties:
       Policies:
         - DynamoDBCrudPolicy:
-            TableName: !Ref Table
+            TableName: !Ref EntryTable
       Events:
         CreateLink:
           Type: Api
           Properties:
+            RestApiId: !Ref Api
             Path: '/api/v1/links'
             Method: post
-            Auth:
-              ApiKeyRequired: true
 
-  Table:
+  ApiKeyAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: auth
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - apigateway:GET
+              Resource:
+                - arn:aws:apigateway:us-east-1::/apikeys
+
+  EntryTable:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
